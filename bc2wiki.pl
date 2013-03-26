@@ -39,7 +39,7 @@ print "\n";
 
 my $basecampHost = 'https://basecamp.com';
 my $baseURL ='/' . $accountId . '/api/v1';
-my $headers = {Accept => 'application/json', 'User-Agent' => 'bc2wiki tool (filip@techio.com)', => Authorization => 'Basic ' . encode_base64($username . ':' . $password)};
+my $headers = {Accept => 'application/json', 'User-Agent' => 'bc2wiki tool (' . $username . ')', => Authorization => 'Basic ' . encode_base64($username . ':' . $password)};
 my $client = REST::Client->new();
 $client->setHost($basecampHost);
 $client->GET(
