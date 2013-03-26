@@ -5,7 +5,10 @@ use JSON;
 # when converted into Perl data structures.
 use Data::Dumper;
 use MIME::Base64;
+use Term::ReadKey;
  
+# https://developer.atlassian.com/display/FECRUDEV/Writing+a+REST+Client+in+Perl
+
 sub toList {
    my $data = shift;
    my $key = shift;
@@ -17,26 +20,40 @@ sub toList {
        [];
    }
 }
-if ($#ARGV ne 0) {
-    print "usage: $0 <username>\n";
+if ($#ARGV ne 2) {
+    print "usage: $0 <username> <accountId> <projectId>\n";
     exit 1;
 }
-my $reviewerToRemove = $ARGV[0];
-my $username = 'admin';
-my $password = 'admin';
-my $headers = {Accept => 'application/json', Authorization => 'Basic ' . encode_base64($username . ':' . $password)};
+my $username = $ARGV[0];
+my $accountId = $ARGV[1];
+my $projectId = $ARGV[2];
+my $password;
+# read password
+print "Enter your bc password: ";
+ReadMode 'noecho';
+$password = ReadLine 0;
+chomp $password;
+ReadMode 'normal';
+print "\n";
+
+
+my $basecampHost = 'https://basecamp.com';
+my $baseURL ='/' . $accountId . '/api/v1';
+my $headers = {Accept => 'application/json', 'User-Agent' => 'bc2wiki tool (filip@techio.com)', => Authorization => 'Basic ' . encode_base64($username . ':' . $password)};
 my $client = REST::Client->new();
-$client->setHost('http://localhost:3990');
+$client->setHost($basecampHost);
 $client->GET(
-    '/fecru/rest-service/reviews-v1/filter/allOpenReviews', 
+    $baseURL . '/projects/' . $projectId . '/topics.json', 
     $headers
 );
 my $response = from_json($client->responseContent());
-my $reviews = toList($response->{'reviews'},'reviewData');
-foreach $review (@$reviews) {
-    my $id = $review->{'permaId'}->{'id'};
-    $client->GET(
-        '/fecru/rest-service/reviews-v1/' . $id . '/reviewers/uncompleted', 
-        $headers
-    );
+#my $topics = toList($response->{'reviews'},'reviewData');
+foreach $topic (@$response) {
+    my $id = $topic->{'id'};
+	my $title = $topic->{'title'};
+	print "$id : $title\n";
+    #$client->GET(
+    #    '/fecru/rest-service/reviews-v1/' . $id . '/reviewers/uncompleted', 
+    #    $headers
+    #);
 }
