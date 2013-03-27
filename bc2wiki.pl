@@ -50,10 +50,32 @@ my $response = from_json($client->responseContent());
 #my $topics = toList($response->{'reviews'},'reviewData');
 foreach $topic (@$response) {
     my $id = $topic->{'id'};
+	my $topicableId = $topic->{'topicable'}->{'id'};
 	my $title = $topic->{'title'};
-	print "$id : $title\n";
-    #$client->GET(
-    #    '/fecru/rest-service/reviews-v1/' . $id . '/reviewers/uncompleted', 
-    #    $headers
-    #);
+	my $created_at = $topic->{'created_at'};
+	print "($id) : $title\n";
+	print "---------------------------------------------------------------------------\n";
+	# let fetch all messages 
+	if($topic->{'topicable'}->{'type'} eq 'Message') {
+		# ok this is a message
+		#print Dumper $topic;
+		$client->GET(
+	        $baseURL  . '/projects/' . $projectId . '/messages/' . $topicableId .'.json', 
+	        $headers
+	    );
+		$response = from_json($client->responseContent());
+		print "\tsubject : $response->{'subject'}\n";
+		print "\tcreated : $response->{'created_at'}\n";
+		print "\tcreator : $response->{'creator'}->{'name'}\n";
+		print "\tcontent : $response->{'content'}\n";
+		my $comments = toList($response,'comments');
+		foreach $comment (@$comments) {
+			print "\t\tcreated : $comment->{'created_at'}\n";
+			print "\t\tcreator : $comment->{'creator'}->{'name'}\n";
+			print "\t\tcontent : $comment->{'content'}\n";
+			print "--------------------------------------\n";
+		}
+	}
+	
+	
 }
