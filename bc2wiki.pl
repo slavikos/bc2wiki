@@ -6,6 +6,10 @@ use JSON;
 use Data::Dumper;
 use MIME::Base64;
 use Term::ReadKey;
+
+# https://confluence.atlassian.com/display/DISC/Perl+XML-RPC+client
+use Confluence;
+
  
 # https://developer.atlassian.com/display/FECRUDEV/Writing+a+REST+Client+in+Perl
 
