@@ -1,0 +1,71 @@
+<ac:macro ac:name="panel">
+	<ac:parameter ac:name="bgColor">#F9F9F9</ac:parameter>
+	<ac:parameter ac:name="borderColor">black</ac:parameter>
+	<ac:rich-text-body>
+	
+		<ac:macro ac:name="warning">
+			<ac:parameter ac:name="icon">true</ac:parameter>
+			<ac:parameter ac:name="title">Forward</ac:parameter>
+			<ac:rich-text-body>
+				Content has been forward has been forwarded by <strong>[% message.creator.name %]</strong> on <code>[% topic.created_at %]</code>
+			</ac:rich-text-body>
+		</ac:macro>
+		
+		<ac:macro ac:name="panel">
+			<ac:parameter ac:name="bgColor">white</ac:parameter>
+			<ac:parameter ac:name="borderStyle">dashed</ac:parameter>
+			<ac:parameter ac:name="borderColor">black</ac:parameter>
+			<ac:parameter ac:name="title">[% message.subject %]</ac:parameter>
+			<ac:rich-text-body>
+				<pre>
+					[% message.content %]
+				</pre>
+			</ac:rich-text-body>
+		</ac:macro ac:name="panel">
+	</ac:rich-text-body>
+</ac:macro>
+
+
+
+<br />
+<br />
+[%  FOREACH comment IN message.comments %]
+
+<ac:macro ac:name="panel">
+	<ac:parameter ac:name="bgColor">#F9F9F9</ac:parameter>
+	<ac:parameter ac:name="borderColor">black</ac:parameter>
+	<ac:rich-text-body>
+		<ac:macro ac:name="section">
+			<ac:rich-text-body>
+				<ac:macro ac:name="column">
+					<ac:parameter ac:name="width">5%</ac:parameter>
+					<ac:rich-text-body>
+						<p>
+							<ac:macro ac:name="status">
+								<ac:parameter ac:name="colour">Yellow</ac:parameter>
+								<ac:parameter ac:name="title">[% comment.creator.name %]</ac:parameter>
+							</ac:macro>
+						</p>
+					</ac:rich-text-body>
+				</ac:macro>
+				<ac:macro ac:name="column">
+					<ac:rich-text-body>
+						<p>
+							<strong>Posted On:</strong>&nbsp;&nbsp;<code>[% comment.created_at %]</code>
+						</p>
+						<p>
+							[% comment.content %] 
+						</p>
+					</ac:rich-text-body>
+				</ac:macro>
+			</ac:rich-text-body>
+		</ac:macro>
+	</ac:rich-text-body>
+</ac:macro>
+
+<br />
+[% END %]
+
+
+
+

@@ -1,0 +1,67 @@
+<ac:macro ac:name="panel">
+	<ac:parameter ac:name="bgColor">#F9F9F9</ac:parameter>
+	<ac:parameter ac:name="borderColor">black</ac:parameter>
+	<ac:rich-text-body>
+	
+		<ac:macro ac:name="warning">
+			<ac:parameter ac:name="icon">true</ac:parameter>
+			<ac:parameter ac:name="title">Todo</ac:parameter>
+			<ac:rich-text-body>
+				A <strong>Calendar Event</strong> has been created by <strong>[% message.creator.name %]</strong> on <code>[% topic.created_at %]</code>. The event starts at
+				<strong>[% message.starts_at %]</strong> and finishes at <strong>[% message.ends_at %]</strong> 
+			</ac:rich-text-body>
+		</ac:macro>
+		
+		<ac:macro ac:name="info">
+			<ac:parameter ac:name="icon">true</ac:parameter>
+			<ac:parameter ac:name="title">Calender Event Details</ac:parameter>
+			<ac:rich-text-body>
+				The event's summary is <strong>[% message.summary %]</strong> with description &quot;[% message.description %]&quot;
+			</ac:rich-text-body>
+		</ac:macro>
+	</ac:rich-text-body>
+</ac:macro>
+
+
+<br />
+<br />
+[%  FOREACH comment IN message.comments %]
+
+<ac:macro ac:name="panel">
+	<ac:parameter ac:name="bgColor">#F9F9F9</ac:parameter>
+	<ac:parameter ac:name="borderColor">black</ac:parameter>
+	<ac:rich-text-body>
+		<ac:macro ac:name="section">
+			<ac:rich-text-body>
+				<ac:macro ac:name="column">
+					<ac:parameter ac:name="width">5%</ac:parameter>
+					<ac:rich-text-body>
+						<p>
+							<ac:macro ac:name="status">
+								<ac:parameter ac:name="colour">Yellow</ac:parameter>
+								<ac:parameter ac:name="title">[% comment.creator.name %]</ac:parameter>
+							</ac:macro>
+						</p>
+					</ac:rich-text-body>
+				</ac:macro>
+				<ac:macro ac:name="column">
+					<ac:rich-text-body>
+						<p>
+							<strong>Posted On:</strong>&nbsp;&nbsp;<code>[% comment.created_at %]</code>
+						</p>
+						<p>
+							[% comment.content %] 
+						</p>
+					</ac:rich-text-body>
+				</ac:macro>
+			</ac:rich-text-body>
+		</ac:macro>
+	</ac:rich-text-body>
+</ac:macro>
+
+<br />
+[% END %]
+
+
+
+

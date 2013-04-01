@@ -183,8 +183,7 @@ foreach my $topic (@$response) {
 
 		$ccontent = "";
 
-	}
-	elsif ( $topicType eq 'Todo' ) {
+	} elsif ( $topicType eq 'Todo' ) {
 		print "** handling Todo ($id) - $title\n";
 		$client->GET(
 			$baseURL
@@ -220,6 +219,84 @@ foreach my $topic (@$response) {
 
 		$ccontent = "";
 		
+	} elsif ( $topicType eq 'Forward' ) {
+		print "** handling Forward ($id) - $title\n";
+		
+		
+		$client->GET(
+			$baseURL
+			  . '/projects/'
+			  . $projectId
+			  . '/forwards/'
+			  . $topicableId . '.json',
+			$headers
+		);
+		$response = from_json( $client->responseContent(), { utf8 => 1 } );
+		
+		
+		
+		#		print Dumper $response;
+		#		exit 0;
+		my $ccontent = "";
+
+		$tt->process(
+			'templates/forward',
+			{
+				topic    => $topic,
+				message  => $response
+			},
+			\$ccontent
+		  )
+		  || die $tt->error;
+
+
+		my $messagePage = storePage(
+			$soap, $cfToken,
+			$importSpace->result->{'key'},
+			$topPage->result->{'id'},
+			'Forward : ' . $response->{'subject'}, $ccontent
+		);
+
+		$ccontent = "";
+	} elsif ( $topicType eq 'CalendarEvent' ) {
+		print "** handling CalendarEvent ($id) - $title\n";
+		
+		
+		$client->GET(
+			$baseURL
+			  . '/projects/'
+			  . $projectId
+			  . '/calendar_events/'
+			  . $topicableId . '.json',
+			$headers
+		);
+		$response = from_json( $client->responseContent(), { utf8 => 1 } );
+		
+		
+		
+		#		print Dumper $response;
+		#		exit 0;
+		my $ccontent = "";
+
+		$tt->process(
+			'templates/calendar_events',
+			{
+				topic    => $topic,
+				message  => $response
+			},
+			\$ccontent
+		  )
+		  || die $tt->error;
+
+
+		my $messagePage = storePage(
+			$soap, $cfToken,
+			$importSpace->result->{'key'},
+			$topPage->result->{'id'},
+			'Calendar Event : ' . $response->{'summary'}, $ccontent
+		);
+
+		$ccontent = "";
 	}
 	else {
 		print "$topic->{'topicable'}->{'type'}\n";
