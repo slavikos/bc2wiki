@@ -15,3 +15,4 @@
 *.exe
 *.out
 *.app
+/bc2wiki.cfg

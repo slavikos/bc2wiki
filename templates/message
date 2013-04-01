@@ -1,0 +1,20 @@
+<ac:macro ac:name="info">
+<ac:parameter ac:name="icon">true</ac:parameter>
+<ac:parameter ac:name="title">Message</ac:parameter>
+<ac:rich-text-body>
+<strong>[% topic.title %]</strong>
+</ac:rich-text-body></ac:macro>
+<br />
+<br />
+[%  FOREACH comment IN comments %]
+<strong>[% comment.creator.name %]</strong> on <strong>[% comment.created_at %]</strong> said :
+<br />
+<blockquote>
+[% comment.content %] 
+</blockquote>
+<br />
+[% END %]
+
+
+
+
