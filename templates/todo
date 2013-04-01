@@ -5,17 +5,22 @@
 	
 		<ac:macro ac:name="warning">
 			<ac:parameter ac:name="icon">true</ac:parameter>
-			<ac:parameter ac:name="title">Message</ac:parameter>
+			<ac:parameter ac:name="title">Todo</ac:parameter>
 			<ac:rich-text-body>
-				Message has been created by <strong>[% message.creator.name %]</strong> on <code>[% topic.created_at %]</code>
+				A todo has been created by <strong>[% message.creator.name %]</strong> on <code>[% topic.created_at %]</code>. 
+				
 			</ac:rich-text-body>
 		</ac:macro>
-		<p>
-		[% message.content %]
-		</p>
+		
+		<ac:macro ac:name="info">
+			<ac:parameter ac:name="icon">true</ac:parameter>
+			<ac:parameter ac:name="title">Assignee</ac:parameter>
+			<ac:rich-text-body>
+				The assignee was <strong>[% message.assignee.name %]</strong>
+			</ac:rich-text-body>
+		</ac:macro>
 	</ac:rich-text-body>
 </ac:macro>
-
 
 
 <br />

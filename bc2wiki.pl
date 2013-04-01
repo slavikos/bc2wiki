@@ -15,6 +15,27 @@ use utf8;
 
 # https://developer.atlassian.com/display/FECRUDEV/Writing+a+REST+Client+in+Perl
 
+#
+sub storePage {
+	my $soapclient = shift;
+	my $authToken  = shift;
+	my $spaceKey   = shift;
+	my $parentId   = shift;
+	my $pageTitle  = shift;
+	my $content    = shift;
+
+	return $soapclient->call(
+		'storePage',
+		$authToken,
+		{
+			parentId => $parentId,
+			space    => SOAP::Data->type( 'string' => value => $spaceKey ),
+			title    => SOAP::Data->type( 'string' => value => $pageTitle ),
+			content  => SOAP::Data->type( 'string' => value => $content )
+		}
+	);
+}
+
 sub toList {
 	my $data = shift;
 	my $key  = shift;
@@ -49,10 +70,9 @@ my $headers      = {
 };
 
 # Confluence Stuff
-my $cfUsername      = $cfg->param("confluence.username");
-my $cfpassword      = $cfg->param("confluence.password");
-my $confluenceHost  = $cfg->param("confluence.host");
-
+my $cfUsername     = $cfg->param("confluence.username");
+my $cfpassword     = $cfg->param("confluence.password");
+my $confluenceHost = $cfg->param("confluence.host");
 
 my $soap =
   SOAP::Lite->service( $cfg->param("confluence.host") )->encoding('UTF-8');
@@ -86,8 +106,7 @@ if ( !defined $importSpace ) {
 	#		   print $xml;
 	#
 
-	$importSpace =
-	  $soap->call( "addSpace", $cfToken, $remoteSpace );
+	$importSpace = $soap->call( "addSpace", $cfToken, $remoteSpace );
 	if ( $importSpace->fault ) {
 		print
 "* failed to create import space due to fault code $importSpace->faultcode and reason \"$importSpace->faultstring\"";
@@ -103,22 +122,15 @@ else {
 # create our placeholder page
 my $date = strftime "%c", localtime;
 
-my $topPage = $soap->call(
-	'storePage',
+my $topPage = storePage(
+	$soap,
 	$cfToken,
-	{
-		parentId => $importSpace->result->{'homePage'},
-		space    => SOAP::Data->type(
-			'string' => value => $importSpace->result->{'key'}
-		),
-		title =>
-		  SOAP::Data->type( 'string' => value => "Import Page " . $date ),
-		content => SOAP::Data->type(
-			'string' => value =>
-'<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro>'
-		)
-	}
+	$importSpace->result->{'key'},
+	$importSpace->result->{'homePage'},
+	"Import Page " . $date,
+'<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
 );
+
 die $topPage->faultstring if ( $topPage->fault );
 
 my $tt = Template->new( { ENCODING => 'utf8' } );
@@ -128,19 +140,15 @@ $client->setHost($basecampHost);
 $client->GET( $baseURL . '/projects/' . $projectId . '/topics.json', $headers );
 my $response = from_json( $client->responseContent(), { utf8 => 1 } );
 
-#my $topics = toList($response->{'reviews'},'reviewData');
 foreach my $topic (@$response) {
 	my $id          = $topic->{'id'};
 	my $topicableId = $topic->{'topicable'}->{'id'};
 	my $title       = $topic->{'title'};
-	my $created_at  = $topic->{'created_at'};
-
+	my $topicType = $topic->{'topicable'}->{'type'};
 	# let fetch all messages
-	if ( $topic->{'topicable'}->{'type'} eq 'Message' ) {
+	if ( $topicType eq 'Message' ) {
 		print "** handling message ($id) - $title\n";
-
-		# ok this is a message
-		#print Dumper $topic;
+		
 		$client->GET(
 			$baseURL
 			  . '/projects/'
@@ -150,39 +158,71 @@ foreach my $topic (@$response) {
 			$headers
 		);
 		$response = from_json( $client->responseContent(), { utf8 => 1 } );
+
+		#		print Dumper $response;
+		#		exit 0;
 		my $ccontent = "";
 
-		#print "\tsubject : $response->{'subject'}\n";
-		#print "\tcreated : $response->{'created_at'}\n";
-		#print "\tcreator : $response->{'creator'}->{'name'}\n";
-		#print "\tcontent : $response->{'content'}\n";
-
-		$tt->process( 'templates/message',
-			{ topic => $topic, comments => toList( $response, 'comments' ) },
-			\$ccontent )
+		$tt->process(
+			'templates/message',
+			{
+				topic    => $topic,
+				message  => $response
+			},
+			\$ccontent
+		  )
 		  || die $tt->error;
 
-		#		print Dumper $ccontent;
-		#		exit 0;
-		#
-		#print "\n$ccontent\n";
 
-		my $messagePage = $soap->call(
-			'storePage',
-			$cfToken,
-			{
-				parentId => $topPage->result->{'id'},
-				space    => SOAP::Data->type(
-					'string' => value => $importSpace->result->{'key'}
-				),
-				title => SOAP::Data->type(
-					'string' => value => $response->{'subject'}
-				),
-				content => SOAP::Data->type( 'string' => value => $ccontent )
-			}
+		my $messagePage = storePage(
+			$soap, $cfToken,
+			$importSpace->result->{'key'},
+			$topPage->result->{'id'},
+			$response->{'subject'}, $ccontent
 		);
+
 		$ccontent = "";
 
+	}
+	elsif ( $topicType eq 'Todo' ) {
+		print "** handling Todo ($id) - $title\n";
+		$client->GET(
+			$baseURL
+			  . '/projects/'
+			  . $projectId
+			  . '/todos/'
+			  . $topicableId . '.json',
+			$headers
+		);
+		$response = from_json( $client->responseContent(), { utf8 => 1 } );
+
+		#		print Dumper $response;
+		#		exit 0;
+		my $ccontent = "";
+
+		$tt->process(
+			'templates/todo',
+			{
+				topic    => $topic,
+				message  => $response
+			},
+			\$ccontent
+		  )
+		  || die $tt->error;
+
+
+		my $messagePage = storePage(
+			$soap, $cfToken,
+			$importSpace->result->{'key'},
+			$topPage->result->{'id'},
+			'Todo : ' . $response->{'content'}, $ccontent
+		);
+
+		$ccontent = "";
+		
+	}
+	else {
+		print "$topic->{'topicable'}->{'type'}\n";
 	}
 }
 
