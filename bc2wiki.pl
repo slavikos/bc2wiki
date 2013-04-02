@@ -49,6 +49,173 @@ sub toList {
 		[];
 	}
 }
+
+sub handleBaseCampTopics {
+	my $client   = shift;
+	my $response = from_json( $client->responseContent(), { utf8 => 1 } );
+
+	foreach my $topic (@$response) {
+		my $id          = $topic->{'id'};
+		my $topicableId = $topic->{'topicable'}->{'id'};
+		my $title       = $topic->{'title'};
+		my $topicType   = $topic->{'topicable'}->{'type'};
+		print "** handling topic ($id) - $title\n";
+		next;
+
+		# let fetch all messages
+		if ( $topicType eq 'Message' ) {
+			print "** handling message ($id) - $title\n";
+
+			$client->GET(
+				$baseURL
+				  . '/projects/'
+				  . $projectId
+				  . '/messages/'
+				  . $topicableId . '.json',
+				$headers
+			);
+			$response = from_json( $client->responseContent(), { utf8 => 1 } );
+
+			#		print Dumper $response;
+			#		exit 0;
+			my $ccontent = "";
+
+			$tt->process(
+				'templates/message',
+				{
+					topic   => $topic,
+					message => $response
+				},
+				\$ccontent
+			  )
+			  || die $tt->error;
+
+			my $messagePage = storePage(
+				$soap, $cfToken,
+				$importSpace->result->{'key'},
+				$topPage->result->{'id'},
+				$response->{'subject'}, $ccontent
+			);
+
+			$ccontent = "";
+
+		}
+		elsif ( $topicType eq 'Todo' ) {
+			print "** handling Todo ($id) - $title\n";
+			$client->GET(
+				$baseURL
+				  . '/projects/'
+				  . $projectId
+				  . '/todos/'
+				  . $topicableId . '.json',
+				$headers
+			);
+			$response = from_json( $client->responseContent(), { utf8 => 1 } );
+
+			#		print Dumper $response;
+			#		exit 0;
+			my $ccontent = "";
+
+			$tt->process(
+				'templates/todo',
+				{
+					topic   => $topic,
+					message => $response
+				},
+				\$ccontent
+			  )
+			  || die $tt->error;
+
+			my $messagePage = storePage(
+				$soap, $cfToken,
+				$importSpace->result->{'key'},
+				$topPage->result->{'id'},
+				'Todo : ' . $response->{'content'}, $ccontent
+			);
+
+			$ccontent = "";
+
+		}
+		elsif ( $topicType eq 'Forward' ) {
+			print "** handling Forward ($id) - $title\n";
+
+			$client->GET(
+				$baseURL
+				  . '/projects/'
+				  . $projectId
+				  . '/forwards/'
+				  . $topicableId . '.json',
+				$headers
+			);
+			$response = from_json( $client->responseContent(), { utf8 => 1 } );
+
+			#		print Dumper $response;
+			#		exit 0;
+			my $ccontent = "";
+
+			$tt->process(
+				'templates/forward',
+				{
+					topic   => $topic,
+					message => $response
+				},
+				\$ccontent
+			  )
+			  || die $tt->error;
+
+			my $messagePage = storePage(
+				$soap, $cfToken,
+				$importSpace->result->{'key'},
+				$topPage->result->{'id'},
+				'Forward : ' . $response->{'subject'}, $ccontent
+			);
+
+			$ccontent = "";
+		}
+		elsif ( $topicType eq 'CalendarEvent' ) {
+			print "** handling CalendarEvent ($id) - $title\n";
+
+			$client->GET(
+				$baseURL
+				  . '/projects/'
+				  . $projectId
+				  . '/calendar_events/'
+				  . $topicableId . '.json',
+				$headers
+			);
+			$response = from_json( $client->responseContent(), { utf8 => 1 } );
+
+			#		print Dumper $response;
+			#		exit 0;
+			my $ccontent = "";
+
+			$tt->process(
+				'templates/calendar_events',
+				{
+					topic   => $topic,
+					message => $response
+				},
+				\$ccontent
+			  )
+			  || die $tt->error;
+
+			my $messagePage = storePage(
+				$soap,
+				$cfToken,
+				$importSpace->result->{'key'},
+				$topPage->result->{'id'},
+				'Calendar Event : ' . $response->{'summary'},
+				$ccontent
+			);
+
+			$ccontent = "";
+		}
+		else {
+			print "$topic->{'topicable'}->{'type'}\n";
+		}
+	}
+}
+
 if ( $#ARGV ne 1 ) {
 	print "usage: $0 <config_file> <projectId>\n";
 	exit 1;
@@ -138,168 +305,21 @@ my $tt = Template->new( { ENCODING => 'utf8' } );
 my $client = REST::Client->new();
 $client->setHost($basecampHost);
 $client->GET( $baseURL . '/projects/' . $projectId . '/topics.json', $headers );
-my $response = from_json( $client->responseContent(), { utf8 => 1 } );
 
-foreach my $topic (@$response) {
-	my $id          = $topic->{'id'};
-	my $topicableId = $topic->{'topicable'}->{'id'};
-	my $title       = $topic->{'title'};
-	my $topicType = $topic->{'topicable'}->{'type'};
-	# let fetch all messages
-	if ( $topicType eq 'Message' ) {
-		print "** handling message ($id) - $title\n";
-		
-		$client->GET(
-			$baseURL
-			  . '/projects/'
-			  . $projectId
-			  . '/messages/'
-			  . $topicableId . '.json',
-			$headers
-		);
-		$response = from_json( $client->responseContent(), { utf8 => 1 } );
+if ( $client->responseCode() eq '200' ) {
+	handleBaseCampTopics($client);
+}
 
-		#		print Dumper $response;
-		#		exit 0;
-		my $ccontent = "";
-
-		$tt->process(
-			'templates/message',
-			{
-				topic    => $topic,
-				message  => $response
-			},
-			\$ccontent
-		  )
-		  || die $tt->error;
-
-
-		my $messagePage = storePage(
-			$soap, $cfToken,
-			$importSpace->result->{'key'},
-			$topPage->result->{'id'},
-			$response->{'subject'}, $ccontent
-		);
-
-		$ccontent = "";
-
-	} elsif ( $topicType eq 'Todo' ) {
-		print "** handling Todo ($id) - $title\n";
-		$client->GET(
-			$baseURL
-			  . '/projects/'
-			  . $projectId
-			  . '/todos/'
-			  . $topicableId . '.json',
-			$headers
-		);
-		$response = from_json( $client->responseContent(), { utf8 => 1 } );
-
-		#		print Dumper $response;
-		#		exit 0;
-		my $ccontent = "";
-
-		$tt->process(
-			'templates/todo',
-			{
-				topic    => $topic,
-				message  => $response
-			},
-			\$ccontent
-		  )
-		  || die $tt->error;
-
-
-		my $messagePage = storePage(
-			$soap, $cfToken,
-			$importSpace->result->{'key'},
-			$topPage->result->{'id'},
-			'Todo : ' . $response->{'content'}, $ccontent
-		);
-
-		$ccontent = "";
-		
-	} elsif ( $topicType eq 'Forward' ) {
-		print "** handling Forward ($id) - $title\n";
-		
-		
-		$client->GET(
-			$baseURL
-			  . '/projects/'
-			  . $projectId
-			  . '/forwards/'
-			  . $topicableId . '.json',
-			$headers
-		);
-		$response = from_json( $client->responseContent(), { utf8 => 1 } );
-		
-		
-		
-		#		print Dumper $response;
-		#		exit 0;
-		my $ccontent = "";
-
-		$tt->process(
-			'templates/forward',
-			{
-				topic    => $topic,
-				message  => $response
-			},
-			\$ccontent
-		  )
-		  || die $tt->error;
-
-
-		my $messagePage = storePage(
-			$soap, $cfToken,
-			$importSpace->result->{'key'},
-			$topPage->result->{'id'},
-			'Forward : ' . $response->{'subject'}, $ccontent
-		);
-
-		$ccontent = "";
-	} elsif ( $topicType eq 'CalendarEvent' ) {
-		print "** handling CalendarEvent ($id) - $title\n";
-		
-		
-		$client->GET(
-			$baseURL
-			  . '/projects/'
-			  . $projectId
-			  . '/calendar_events/'
-			  . $topicableId . '.json',
-			$headers
-		);
-		$response = from_json( $client->responseContent(), { utf8 => 1 } );
-		
-		
-		
-		#		print Dumper $response;
-		#		exit 0;
-		my $ccontent = "";
-
-		$tt->process(
-			'templates/calendar_events',
-			{
-				topic    => $topic,
-				message  => $response
-			},
-			\$ccontent
-		  )
-		  || die $tt->error;
-
-
-		my $messagePage = storePage(
-			$soap, $cfToken,
-			$importSpace->result->{'key'},
-			$topPage->result->{'id'},
-			'Calendar Event : ' . $response->{'summary'}, $ccontent
-		);
-
-		$ccontent = "";
+my $page = 1;
+while ( $client->responseCode() eq '200' && length($client->responseContent()) > 10) {
+	print $page;
+	print "\n";
+	$client->GET(
+		$baseURL . '/projects/' . $projectId . '/topics.json?page=' . $page,
+		$headers );
+	if ( $client->responseCode() eq '200' && length($client->responseContent()) > 10) {
+		handleBaseCampTopics($client);
 	}
-	else {
-		print "$topic->{'topicable'}->{'type'}\n";
-	}
+	$page++;
 }
 
