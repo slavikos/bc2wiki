@@ -52,6 +52,20 @@
 						<p>
 							[% comment.content %] 
 						</p>
+						[% IF comment.attachments.size %]
+						<hr />
+						[%  FOREACH attachment IN comment.attachments %]
+							[% IF (index(attachment.content_type, 'image') != -1) %]
+								<ac:image ac:thumbnail="true" ac:width="200">
+									<ri:attachment ri:filename="[% attachment.name %]" />
+								</ac:image>
+							[% ELSE %]
+								<ac:link>
+									<ri:attachment ri:filename="[% attachment.name %]" />
+								</ac:link>
+							[% END %]
+						[%  END %]
+						[% END %]
 					</ac:rich-text-body>
 				</ac:macro>
 			</ac:rich-text-body>

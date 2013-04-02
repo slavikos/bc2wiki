@@ -10,8 +10,11 @@ use Config::Simple;
 use POSIX qw(strftime);
 use Template;
 use Encode;
+
 use SOAP::Lite;
+#use SOAP::Lite +trace => 'debug';
 use utf8;
+require LWP::UserAgent;
 
 # https://developer.atlassian.com/display/FECRUDEV/Writing+a+REST+Client+in+Perl
 
@@ -36,19 +39,12 @@ sub storePage {
 	);
 }
 
-
-
-
-
 if ( $#ARGV ne 1 ) {
 	print "usage: $0 <config_file> <projectId>\n";
 	exit 1;
 }
 
 my $cfg = new Config::Simple( $ARGV[0] );
-
-
-
 
 # BC stuff
 my $username     = $cfg->param("bc.username");
@@ -134,22 +130,83 @@ $client->setHost($basecampHost);
 $client->GET( $baseURL . '/projects/' . $projectId . '/topics.json', $headers );
 
 if ( $client->responseCode() eq '200' ) {
-	handleBaseCampTopics($client,$projectId);
+	handleBaseCampTopics( $client, $projectId );
 }
 
+exit;
+
 my $page = 1;
-while ( $client->responseCode() eq '200' && length($client->responseContent()) > 10) {
+while ( $client->responseCode() eq '200'
+	&& length( $client->responseContent() ) > 10 )
+{
 	print $page;
 	print "\n";
 	$client->GET(
 		$baseURL . '/projects/' . $projectId . '/topics.json?page=' . $page,
 		$headers );
-	if ( $client->responseCode() eq '200' && length($client->responseContent()) > 10) {
-		handleBaseCampTopics($client,$projectId);
+	if ( $client->responseCode() eq '200'
+		&& length( $client->responseContent() ) > 10 )
+	{
+		handleBaseCampTopics( $client, $projectId );
 	}
 	$page++;
 }
 
+sub toList {
+	my $data = shift;
+	my $key  = shift;
+	if ( ref( $data->{$key} ) eq 'ARRAY' ) {
+		$data->{$key};
+	}
+	elsif ( ref( $data->{$key} ) eq 'HASH' ) {
+		[ $data->{$key} ];
+	}
+	else {
+		[];
+	}
+}
+
+sub handleAttachment {
+	my $ua         = shift;
+	my $soapclient = shift;
+	my $uaUsername = shift;
+	my $uaPassword = shift;
+	my $attachment = shift;
+	my $pageId     = shift;
+	my $authToken  = shift;
+
+	my $request = HTTP::Request->new( GET => $attachment->{url} );
+	$request->authorization_basic( $uaUsername, $uaPassword );
+
+	my $data = $ua->request($request);
+	if ( $data->is_success ) {
+
+		$remoteAttachmentElement = SOAP::Data->name(
+			"remoteAttachmentDetails" => \SOAP::Data->value(
+				SOAP::Data->name( 'comment' => 'temp comment for attachment' )
+				  ->type('string'),
+				SOAP::Data->name(
+					'contentType' => $attachment->{content_type}
+				  )->type('string'),
+				SOAP::Data->name( 'fileName' => $attachment->{name} )
+				  ->type('string'),
+			)
+		)->type('tns2:RemoteAttachment');
+
+		return $soapclient->call(
+			'addAttachment',
+			$authToken,
+			SOAP::Data->value($pageId)->type('long'),
+			$remoteAttachmentElement,
+			SOAP::Data->value( ( $data->decoded_content ) )
+			  ->type('base64Binary')
+		);
+
+	}
+	else {
+		die $data->status_line;
+	}
+}
 
 sub handleBaseCampTopics {
 	my $client   = shift;
@@ -160,7 +217,10 @@ sub handleBaseCampTopics {
 		my $topicableId = $topic->{'topicable'}->{'id'};
 		my $title       = $topic->{'title'};
 		my $topicType   = $topic->{'topicable'}->{'type'};
-		
+
+		my $ua = LWP::UserAgent->new;
+		$ua->timeout(10);
+		$ua->env_proxy;
 
 		# let fetch all messages
 		if ( $topicType eq 'Message' ) {
@@ -197,6 +257,46 @@ sub handleBaseCampTopics {
 				$response->{'subject'}, $ccontent
 			);
 
+			# handle message attachment
+			
+			
+			my $topLevelAttachments = toList( $response, 'attachments' );
+
+			foreach my $attachment (@$topLevelAttachments) {
+				print
+"\t** handling attachment $attachment->{name} of type $attachment->{content_type}\n";
+				handleAttachment(
+					$ua,                        $soap,
+					$cfg->param("bc.username"), $cfg->param("bc.password"),
+					$attachment,                $messagePage->result->{'id'},
+					$cfToken
+				);
+
+			}
+
+			# handle comment attachment
+
+			my $comments = toList( $response, 'comments' );
+
+			foreach my $comment (@$comments) {
+				my $attachments = toList( $comment, 'attachments' );
+				foreach my $attachment (@$attachments) {
+					print
+"\t** handling attachment $attachment->{name} of type $attachment->{content_type}\n";
+					handleAttachment(
+						$ua,
+						$soap,
+						$cfg->param("bc.username"),
+						$cfg->param("bc.password"),
+						$attachment,
+						$messagePage->result->{'id'},
+						$cfToken
+					);
+
+				}
+
+			}
+
 			$ccontent = "";
 
 		}
@@ -210,7 +310,7 @@ sub handleBaseCampTopics {
 				  . $topicableId . '.json',
 				$headers
 			);
-			
+
 			$response = from_json( $client->responseContent(), { utf8 => 1 } );
 
 			#		print Dumper $response;
@@ -233,6 +333,29 @@ sub handleBaseCampTopics {
 				$topPage->result->{'id'},
 				'Todo : ' . $response->{'content'}, $ccontent
 			);
+			
+			# handle comment attachment
+
+			my $comments = toList( $response, 'comments' );
+
+			foreach my $comment (@$comments) {
+				my $attachments = toList( $comment, 'attachments' );
+				foreach my $attachment (@$attachments) {
+					print
+"\t** handling attachment $attachment->{name} of type $attachment->{content_type}\n";
+					handleAttachment(
+						$ua,
+						$soap,
+						$cfg->param("bc.username"),
+						$cfg->param("bc.password"),
+						$attachment,
+						$messagePage->result->{'id'},
+						$cfToken
+					);
+
+				}
+
+			}
 
 			$ccontent = "";
 
@@ -270,12 +393,54 @@ sub handleBaseCampTopics {
 				$topPage->result->{'id'},
 				'Forward : ' . $response->{'subject'}, $ccontent
 			);
+			
+			
+			# handle forward attachment
+			
+			
+			my $topLevelAttachments = toList( $response, 'attachments' );
+
+			foreach my $attachment (@$topLevelAttachments) {
+				print
+"\t** handling attachment $attachment->{name} of type $attachment->{content_type}\n";
+				handleAttachment(
+					$ua,                        $soap,
+					$cfg->param("bc.username"), $cfg->param("bc.password"),
+					$attachment,                $messagePage->result->{'id'},
+					$cfToken
+				);
+
+			}
+
+			# handle comment attachment
+
+			my $comments = toList( $response, 'comments' );
+
+			foreach my $comment (@$comments) {
+				my $attachments = toList( $comment, 'attachments' );
+				foreach my $attachment (@$attachments) {
+					print
+"\t** handling attachment $attachment->{name} of type $attachment->{content_type}\n";
+					handleAttachment(
+						$ua,
+						$soap,
+						$cfg->param("bc.username"),
+						$cfg->param("bc.password"),
+						$attachment,
+						$messagePage->result->{'id'},
+						$cfToken
+					);
+
+				}
+
+			}
+			
+			
 
 			$ccontent = "";
 		}
 		elsif ( $topicType eq 'CalendarEvent' ) {
 			print "** handling CalendarEvent ($id) - $title\n";
-
 			$client->GET(
 				$baseURL
 				  . '/projects/'
@@ -308,6 +473,30 @@ sub handleBaseCampTopics {
 				'Calendar Event : ' . $response->{'summary'},
 				$ccontent
 			);
+			
+			# handle comment attachment
+
+			my $comments = toList( $response, 'comments' );
+
+			foreach my $comment (@$comments) {
+				my $attachments = toList( $comment, 'attachments' );
+				foreach my $attachment (@$attachments) {
+					print
+"\t** handling attachment $attachment->{name} of type $attachment->{content_type}\n";
+					handleAttachment(
+						$ua,
+						$soap,
+						$cfg->param("bc.username"),
+						$cfg->param("bc.password"),
+						$attachment,
+						$messagePage->result->{'id'},
+						$cfToken
+					);
+
+				}
+
+			}
+			
 
 			$ccontent = "";
 		}
