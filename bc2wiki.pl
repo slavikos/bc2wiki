@@ -36,19 +36,120 @@ sub storePage {
 	);
 }
 
-sub toList {
-	my $data = shift;
-	my $key  = shift;
-	if ( ref( $data->{$key} ) eq 'ARRAY' ) {
-		$data->{$key};
-	}
-	elsif ( ref( $data->{$key} ) eq 'HASH' ) {
-		[ $data->{$key} ];
-	}
-	else {
-		[];
-	}
+
+
+
+
+if ( $#ARGV ne 1 ) {
+	print "usage: $0 <config_file> <projectId>\n";
+	exit 1;
 }
+
+my $cfg = new Config::Simple( $ARGV[0] );
+
+
+
+
+# BC stuff
+my $username     = $cfg->param("bc.username");
+my $accountId    = $cfg->param("bc.accountId");
+my $password     = $cfg->param("bc.password");
+my $projectId    = $ARGV[1];
+my $basecampHost = 'https://basecamp.com';
+my $baseURL      = '/' . $accountId . '/api/v1';
+my $headers      = {
+	Accept           => 'application/json',
+	'User-Agent'     => 'bc2wiki tool (' . $username . ')',
+	=> Authorization => 'Basic ' . encode_base64( $username . ':' . $password )
+};
+
+# Confluence Stuff
+my $cfUsername     = $cfg->param("confluence.username");
+my $cfpassword     = $cfg->param("confluence.password");
+my $confluenceHost = $cfg->param("confluence.host");
+
+my $soap =
+  SOAP::Lite->service( $cfg->param("confluence.host") )->encoding('UTF-8');
+
+my $cfToken = $soap->login( $cfUsername, $cfpassword );
+
+# try to fetch the import space. If the space does not exists, then try to create a new one.
+$soap->call( "removeSpace", $cfToken, $cfg->param("confluence.spaceKey") );
+my $importSpace =
+  $soap->getSpace( $cfToken, $cfg->param("confluence.spaceKey") );
+
+if ( !defined $importSpace ) {
+	print "** confluence import space does not exist. Trying to create one.\n";
+
+	my $remoteSpace = {
+		'name' => SOAP::Data->type(
+			'string' => value => $cfg->param("confluence.spaceName")
+		),
+		'key' => SOAP::Data->type(
+			'string' => value => $cfg->param("confluence.spaceKey")
+		),
+		'description' => SOAP::Data->type(
+			'string' => value => $cfg->param("confluence.spaceDescription")
+		),
+	};
+
+	#
+	#		$serializer = SOAP::Serializer->new();
+	#		   $serializer->readable('true');
+	#		   $xml = $serializer->serialize($element);
+	#		   print $xml;
+	#
+
+	$importSpace = $soap->call( "addSpace", $cfToken, $remoteSpace );
+	if ( $importSpace->fault ) {
+		print
+"* failed to create import space due to fault code $importSpace->faultcode and reason \"$importSpace->faultstring\"";
+		exit -1;
+	}
+
+	print "** created import space.\n";
+}
+else {
+	print "** import space exists.\n";
+}
+
+# create our placeholder page
+my $date = strftime "%c", localtime;
+
+my $topPage = storePage(
+	$soap,
+	$cfToken,
+	$importSpace->result->{'key'},
+	$importSpace->result->{'homePage'},
+	"Import Page " . $date,
+'<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
+);
+
+die $topPage->faultstring if ( $topPage->fault );
+
+my $tt = Template->new( { ENCODING => 'utf8' } );
+
+my $client = REST::Client->new();
+$client->setHost($basecampHost);
+$client->GET( $baseURL . '/projects/' . $projectId . '/topics.json', $headers );
+
+if ( $client->responseCode() eq '200' ) {
+	handleBaseCampTopics($client,$projectId);
+}
+
+my $page = 1;
+while ( $client->responseCode() eq '200' && length($client->responseContent()) > 10) {
+	print $page;
+	print "\n";
+	$client->GET(
+		$baseURL . '/projects/' . $projectId . '/topics.json?page=' . $page,
+		$headers );
+	if ( $client->responseCode() eq '200' && length($client->responseContent()) > 10) {
+		handleBaseCampTopics($client,$projectId);
+	}
+	$page++;
+}
+
 
 sub handleBaseCampTopics {
 	my $client   = shift;
@@ -59,8 +160,7 @@ sub handleBaseCampTopics {
 		my $topicableId = $topic->{'topicable'}->{'id'};
 		my $title       = $topic->{'title'};
 		my $topicType   = $topic->{'topicable'}->{'type'};
-		print "** handling topic ($id) - $title\n";
-		next;
+		
 
 		# let fetch all messages
 		if ( $topicType eq 'Message' ) {
@@ -110,6 +210,7 @@ sub handleBaseCampTopics {
 				  . $topicableId . '.json',
 				$headers
 			);
+			
 			$response = from_json( $client->responseContent(), { utf8 => 1 } );
 
 			#		print Dumper $response;
@@ -214,112 +315,5 @@ sub handleBaseCampTopics {
 			print "$topic->{'topicable'}->{'type'}\n";
 		}
 	}
-}
-
-if ( $#ARGV ne 1 ) {
-	print "usage: $0 <config_file> <projectId>\n";
-	exit 1;
-}
-
-my $cfg = new Config::Simple( $ARGV[0] );
-
-# BC stuff
-my $username     = $cfg->param("bc.username");
-my $accountId    = $cfg->param("bc.accountId");
-my $password     = $cfg->param("bc.password");
-my $projectId    = $ARGV[1];
-my $basecampHost = 'https://basecamp.com';
-my $baseURL      = '/' . $accountId . '/api/v1';
-my $headers      = {
-	Accept           => 'application/json',
-	'User-Agent'     => 'bc2wiki tool (' . $username . ')',
-	=> Authorization => 'Basic ' . encode_base64( $username . ':' . $password )
-};
-
-# Confluence Stuff
-my $cfUsername     = $cfg->param("confluence.username");
-my $cfpassword     = $cfg->param("confluence.password");
-my $confluenceHost = $cfg->param("confluence.host");
-
-my $soap =
-  SOAP::Lite->service( $cfg->param("confluence.host") )->encoding('UTF-8');
-
-my $cfToken = $soap->login( $cfUsername, $cfpassword );
-
-# try to fetch the import space. If the space does not exists, then try to create a new one.
-$soap->call( "removeSpace", $cfToken, $cfg->param("confluence.spaceKey") );
-my $importSpace =
-  $soap->getSpace( $cfToken, $cfg->param("confluence.spaceKey") );
-
-if ( !defined $importSpace ) {
-	print "** confluence import space does not exist. Trying to create one.\n";
-
-	my $remoteSpace = {
-		'name' => SOAP::Data->type(
-			'string' => value => $cfg->param("confluence.spaceName")
-		),
-		'key' => SOAP::Data->type(
-			'string' => value => $cfg->param("confluence.spaceKey")
-		),
-		'description' => SOAP::Data->type(
-			'string' => value => $cfg->param("confluence.spaceDescription")
-		),
-	};
-
-	#
-	#		$serializer = SOAP::Serializer->new();
-	#		   $serializer->readable('true');
-	#		   $xml = $serializer->serialize($element);
-	#		   print $xml;
-	#
-
-	$importSpace = $soap->call( "addSpace", $cfToken, $remoteSpace );
-	if ( $importSpace->fault ) {
-		print
-"* failed to create import space due to fault code $importSpace->faultcode and reason \"$importSpace->faultstring\"";
-		exit -1;
-	}
-
-	print "** created import space.\n";
-}
-else {
-	print "** import space exists.\n";
-}
-
-# create our placeholder page
-my $date = strftime "%c", localtime;
-
-my $topPage = storePage(
-	$soap,
-	$cfToken,
-	$importSpace->result->{'key'},
-	$importSpace->result->{'homePage'},
-	"Import Page " . $date,
-'<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
-);
-
-die $topPage->faultstring if ( $topPage->fault );
-
-my $tt = Template->new( { ENCODING => 'utf8' } );
-
-my $client = REST::Client->new();
-$client->setHost($basecampHost);
-$client->GET( $baseURL . '/projects/' . $projectId . '/topics.json', $headers );
-
-if ( $client->responseCode() eq '200' ) {
-	handleBaseCampTopics($client);
-}
-
-my $page = 1;
-while ( $client->responseCode() eq '200' && length($client->responseContent()) > 10) {
-	print $page;
-	print "\n";
-	$client->GET(
-		$baseURL . '/projects/' . $projectId . '/topics.json?page=' . $page,
-		$headers );
-	if ( $client->responseCode() eq '200' && length($client->responseContent()) > 10) {
-		handleBaseCampTopics($client);
-	}
-	$page++;
 }
 
