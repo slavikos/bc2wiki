@@ -109,8 +109,53 @@ else {
 	print "** import space exists.\n";
 }
 
-# create our placeholder page
-my $date = strftime "%c", localtime;
+# create our placeholder page(s)
+
+my $discussionsPage = storePage(
+	$soap,
+	$cfToken,
+	$importSpace->result->{'key'},
+	$importSpace->result->{'homePage'},
+	"Discussions",
+'<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
+);
+
+my $forwardsPage = storePage(
+	$soap,
+	$cfToken,
+	$importSpace->result->{'key'},
+	$importSpace->result->{'homePage'},
+	"Forwards",
+'<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
+);
+
+my $todosPage = storePage(
+	$soap,
+	$cfToken,
+	$importSpace->result->{'key'},
+	$importSpace->result->{'homePage'},
+	"ToDos",
+'<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
+);
+
+my $calendarEventsPage = storePage(
+	$soap,
+	$cfToken,
+	$importSpace->result->{'key'},
+	$importSpace->result->{'homePage'},
+	"Calendar Events",
+'<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
+);
+
+my $uploadsPage = storePage(
+	$soap,
+	$cfToken,
+	$importSpace->result->{'key'},
+	$importSpace->result->{'homePage'},
+	"Uploads",
+'<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
+);
+
 
 my $topPage = storePage(
 	$soap,
