@@ -120,6 +120,8 @@ my $discussionsPage = storePage(
 '<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
 );
 
+die $discussionsPage->faultstring if ( $discussionsPage->fault );
+
 my $forwardsPage = storePage(
 	$soap,
 	$cfToken,
@@ -128,6 +130,8 @@ my $forwardsPage = storePage(
 	"Forwards",
 '<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
 );
+
+die $forwardsPage->faultstring if ( $forwardsPage->fault );
 
 my $todosPage = storePage(
 	$soap,
@@ -138,6 +142,8 @@ my $todosPage = storePage(
 '<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
 );
 
+die $todosPage->faultstring if ( $todosPage->fault );
+
 my $calendarEventsPage = storePage(
 	$soap,
 	$cfToken,
@@ -146,6 +152,8 @@ my $calendarEventsPage = storePage(
 	"Calendar Events",
 '<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
 );
+
+die $calendarEventsPage->faultstring if ( $calendarEventsPage->fault );
 
 my $uploadsPage = storePage(
 	$soap,
@@ -156,17 +164,7 @@ my $uploadsPage = storePage(
 '<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
 );
 
-
-my $topPage = storePage(
-	$soap,
-	$cfToken,
-	$importSpace->result->{'key'},
-	$importSpace->result->{'homePage'},
-	"Import Page " . $date,
-'<ac:macro ac:name="info"><ac:rich-text-body>This is a placeholder page.</ac:rich-text-body></ac:macro><p><ac:macro ac:name="children"><ac:parameter ac:name="excerpt">true</ac:parameter><ac:parameter ac:name="all">true</ac:parameter></ac:macro></p>'
-);
-
-die $topPage->faultstring if ( $topPage->fault );
+die $uploadsPage->faultstring if ( $uploadsPage->fault );
 
 my $tt = Template->new( { ENCODING => 'utf8' } );
 
@@ -178,7 +176,6 @@ if ( $client->responseCode() eq '200' ) {
 	handleBaseCampTopics( $client, $projectId );
 }
 
-exit;
 
 my $page = 1;
 while ( $client->responseCode() eq '200'
@@ -300,7 +297,7 @@ sub handleBaseCampTopics {
 			my $messagePage = storePage(
 				$soap, $cfToken,
 				$importSpace->result->{'key'},
-				$topPage->result->{'id'},
+				$discussionsPage->result->{'id'},
 				$response->{'subject'}, $ccontent
 			);
 
@@ -377,7 +374,7 @@ sub handleBaseCampTopics {
 			my $messagePage = storePage(
 				$soap, $cfToken,
 				$importSpace->result->{'key'},
-				$topPage->result->{'id'},
+				$todosPage->result->{'id'},
 				'Todo : ' . $response->{'content'}, $ccontent
 			);
 			
@@ -437,7 +434,7 @@ sub handleBaseCampTopics {
 			my $messagePage = storePage(
 				$soap, $cfToken,
 				$importSpace->result->{'key'},
-				$topPage->result->{'id'},
+				$forwardsPage->result->{'id'},
 				'Forward : ' . $response->{'subject'}, $ccontent
 			);
 			
@@ -516,7 +513,7 @@ sub handleBaseCampTopics {
 				$soap,
 				$cfToken,
 				$importSpace->result->{'key'},
-				$topPage->result->{'id'},
+				$calendarEventsPage->result->{'id'},
 				'Calendar Event : ' . $response->{'summary'},
 				$ccontent
 			);
