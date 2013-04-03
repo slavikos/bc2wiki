@@ -12,6 +12,7 @@ use Template;
 use Encode;
 
 use SOAP::Lite;
+
 #use SOAP::Lite +trace => 'debug';
 use utf8;
 require LWP::UserAgent;
@@ -176,7 +177,6 @@ if ( $client->responseCode() eq '200' ) {
 	handleBaseCampTopics( $client, $projectId );
 }
 
-
 my $page = 1;
 while ( $client->responseCode() eq '200'
 	&& length( $client->responseContent() ) > 10 )
@@ -225,14 +225,14 @@ sub handleAttachment {
 
 		$remoteAttachmentElement = SOAP::Data->name(
 			"remoteAttachmentDetails" => \SOAP::Data->value(
-				SOAP::Data->name( 'comment' => '' )
-				  ->type('string'),
+				SOAP::Data->name( 'comment' => '' )->type('string'),
 				SOAP::Data->name(
 					'contentType' => $attachment->{content_type}
 				  )->type('string'),
-				SOAP::Data->name( 'fileName' => $attachment->{key} . $attachment->{name} )
-				  ->type('string'),
-				  SOAP::Data->name( 'title' => $attachment->{name} )
+				SOAP::Data->name(
+					'fileName' => $attachment->{key} . $attachment->{name}
+				  )->type('string'),
+				SOAP::Data->name( 'title' => $attachment->{name} )
 				  ->type('string'),
 			)
 		)->type('tns2:RemoteAttachment');
@@ -302,8 +302,7 @@ sub handleBaseCampTopics {
 			);
 
 			# handle message attachment
-			
-			
+
 			my $topLevelAttachments = toList( $response, 'attachments' );
 
 			foreach my $attachment (@$topLevelAttachments) {
@@ -342,7 +341,6 @@ sub handleBaseCampTopics {
 			}
 
 			$ccontent = "";
-
 		}
 		elsif ( $topicType eq 'Todo' ) {
 			print "** handling Todo ($id) - $title\n";
@@ -377,7 +375,7 @@ sub handleBaseCampTopics {
 				$todosPage->result->{'id'},
 				'Todo : ' . $response->{'content'}, $ccontent
 			);
-			
+
 			# handle comment attachment
 
 			my $comments = toList( $response, 'comments' );
@@ -432,16 +430,16 @@ sub handleBaseCampTopics {
 			  || die $tt->error;
 
 			my $messagePage = storePage(
-				$soap, $cfToken,
+				$soap,
+				$cfToken,
 				$importSpace->result->{'key'},
 				$forwardsPage->result->{'id'},
-				'Forward : ' . $response->{'subject'}, $ccontent
+				'Forward : ' . $response->{'subject'},
+				$ccontent
 			);
-			
-			
+
 			# handle forward attachment
-			
-			
+
 			my $topLevelAttachments = toList( $response, 'attachments' );
 
 			foreach my $attachment (@$topLevelAttachments) {
@@ -478,8 +476,6 @@ sub handleBaseCampTopics {
 				}
 
 			}
-			
-			
 
 			$ccontent = "";
 		}
@@ -517,6 +513,83 @@ sub handleBaseCampTopics {
 				'Calendar Event : ' . $response->{'summary'},
 				$ccontent
 			);
+
+			# handle comment attachment
+
+			my $comments = toList( $response, 'comments' );
+
+			foreach my $comment (@$comments) {
+				my $attachments = toList( $comment, 'attachments' );
+				foreach my $attachment (@$attachments) {
+					print
+"\t** handling attachment $attachment->{name} of type $attachment->{content_type}\n";
+					handleAttachment(
+						$ua,
+						$soap,
+						$cfg->param("bc.username"),
+						$cfg->param("bc.password"),
+						$attachment,
+						$messagePage->result->{'id'},
+						$cfToken
+					);
+
+				}
+
+			}
+
+			$ccontent = "";
+		} elsif ( $topicType eq 'Upload' ) {
+			print "** handling Upload ($id) - $title\n";
+			$client->GET(
+				$baseURL
+				  . '/projects/'
+				  . $projectId
+				  . '/uploads/'
+				  . $topicableId . '.json',
+				$headers
+			);
+			$response = from_json( $client->responseContent(), { utf8 => 1 } );
+
+			#		print Dumper $response;
+			#		exit 0;
+			my $ccontent = "";
+
+			$tt->process(
+				'templates/upload',
+				{
+					topic   => $topic,
+					message => $response
+				},
+				\$ccontent
+			  )
+			  || die $tt->error;
+
+			my $topLevelAttachments = toList( $response, 'attachments' );
+			
+			my $messagePage = storePage(
+				$soap,
+				$cfToken,
+				$importSpace->result->{'key'},
+				$uploadsPage->result->{'id'},
+				'Upload : ' . @$topLevelAttachments[0]->{'name'},
+				$ccontent
+			);
+			
+			# handle message attachment
+			
+			
+
+			foreach my $attachment (@$topLevelAttachments) {
+				print
+"\t** handling attachment $attachment->{name} of type $attachment->{content_type}\n";
+				handleAttachment(
+					$ua,                        $soap,
+					$cfg->param("bc.username"), $cfg->param("bc.password"),
+					$attachment,                $messagePage->result->{'id'},
+					$cfToken
+				);
+
+			}
 			
 			# handle comment attachment
 

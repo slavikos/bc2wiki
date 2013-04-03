@@ -1,0 +1,113 @@
+<ac:macro ac:name="panel">
+	<ac:parameter ac:name="bgColor">#F9F9F9</ac:parameter>
+	<ac:parameter ac:name="borderColor">black</ac:parameter>
+	<ac:rich-text-body>
+	
+		<ac:macro ac:name="warning">
+			<ac:parameter ac:name="icon">true</ac:parameter>
+			<ac:parameter ac:name="title">Upload</ac:parameter>
+			<ac:rich-text-body>
+				An upload has been created by <strong>[% attachments.first.creator.name %]</strong> on <code>[% topic.created_at %]</code>
+			</ac:rich-text-body>
+		</ac:macro>
+		<p>
+		[% message.content %]
+		</p>
+		[% IF message.attachments.size %]
+			<hr />
+			[%  FOREACH attachment IN message.attachments %]
+				[% IF ( matches = attachment.content_type.match('^(image)')) %]
+					<ac:image ac:thumbnail="true" ac:width="200" ac:title="[% attachment.name %]">
+						<ri:attachment ri:filename="[% attachment.key %][% attachment.name %]" />
+					</ac:image>
+				[% END %]
+			[% END %]
+			
+			[%  FOREACH attachment IN message.attachments %]
+			<ul>
+				[% IF ( matches = attachment.content_type.match('^(?!image)')) %]
+					<li>
+						<ac:link>
+							<ri:attachment ri:filename="[% attachment.key %][% attachment.name %]" />
+							<ac:plain-text-link-body>
+								<![CDATA[ [% attachment.name %] ]]>
+							</ac:plain-text-link-body>
+						</ac:link>
+					</li>
+				[% END %]
+			</ul>
+			[% END %]
+		[% END %]
+		
+	</ac:rich-text-body>
+</ac:macro>
+
+
+
+<br />
+<br />
+[%  FOREACH comment IN message.comments %]
+
+<ac:macro ac:name="panel">
+	<ac:parameter ac:name="bgColor">#F9F9F9</ac:parameter>
+	<ac:parameter ac:name="borderColor">black</ac:parameter>
+	<ac:rich-text-body>
+		<ac:macro ac:name="section">
+			<ac:rich-text-body>
+				<ac:macro ac:name="column">
+					<ac:parameter ac:name="width">5%</ac:parameter>
+					<ac:rich-text-body>
+						<p>
+							<ac:macro ac:name="status">
+								<ac:parameter ac:name="colour">Yellow</ac:parameter>
+								<ac:parameter ac:name="title">[% comment.creator.name %]</ac:parameter>
+							</ac:macro>
+						</p>
+					</ac:rich-text-body>
+				</ac:macro>
+				<ac:macro ac:name="column">
+					<ac:rich-text-body>
+						<p>
+							<strong>Posted On:</strong>&nbsp;&nbsp;<code>[% comment.created_at %]</code>
+						</p>
+						<p>
+							[% comment.content %] 
+						</p>
+						[% IF comment.attachments.size %]
+							<hr />
+							[%  FOREACH attachment IN comment.attachments %]
+								[% IF ( matches = attachment.content_type.match('^(image)')) %]
+									<ac:image ac:thumbnail="true" ac:width="200" ac:title="[% attachment.name %]">
+										<ri:attachment ri:filename="[% attachment.key %][% attachment.name %]" />
+									</ac:image>
+								[% END %]
+							[% END %]
+							
+							[%  FOREACH attachment IN comment.attachments %]
+							<ul>
+								[% IF ( matches = attachment.content_type.match('^(?!image)')) %]
+									<li>
+										<ac:link>
+											<ri:attachment ri:filename="[% attachment.key %][% attachment.name %]" />
+											<ac:plain-text-link-body>
+    											<![CDATA[ [% attachment.name %] ]]>
+  											</ac:plain-text-link-body>
+										</ac:link>
+									</li>
+								[% END %]
+							</ul>
+							[% END %]
+						[% END %]
+					</ac:rich-text-body>
+				</ac:macro>
+			</ac:rich-text-body>
+		</ac:macro>
+	</ac:rich-text-body>
+</ac:macro>
+
+<br />
+[% END %]
+
+
+
+
