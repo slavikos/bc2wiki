@@ -171,28 +171,23 @@ my $tt = Template->new( { ENCODING => 'utf8' } );
 
 my $client = REST::Client->new();
 $client->setHost($basecampHost);
-$client->GET( $baseURL . '/projects/' . $projectId . '/topics.json', $headers );
 
-if ( $client->responseCode() eq '200' ) {
-	handleBaseCampTopics( $client, $projectId );
-}
+# iterate through topics
 
 my $page = 1;
-while ( $client->responseCode() eq '200'
-	&& length( $client->responseContent() ) > 10 )
-{
-	print $page;
-	print "\n";
+
+while(1) {
 	$client->GET(
 		$baseURL . '/projects/' . $projectId . '/topics.json?page=' . $page,
 		$headers );
-	if ( $client->responseCode() eq '200'
-		&& length( $client->responseContent() ) > 10 )
-	{
-		handleBaseCampTopics( $client, $projectId );
-	}
+	my $res  =  $client->responseContent();
+	last if $res eq '[]';
+	handleBaseCampTopics( $client, $projectId );
 	$page++;
 }
+exit;
+
+
 
 sub toList {
 	my $data = shift;
