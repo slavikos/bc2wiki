@@ -5,7 +5,7 @@
 	
 		<ac:macro ac:name="warning">
 			<ac:parameter ac:name="icon">true</ac:parameter>
-			<ac:parameter ac:name="title">Todo</ac:parameter>
+			<ac:parameter ac:name="title">Calendar Event</ac:parameter>
 			<ac:rich-text-body>
 				A <strong>Calendar Event</strong> has been created by <strong>[% message.creator.name %]</strong> on <code>[% topic.created_at %]</code>. The event starts at
 				<strong>[% message.starts_at %]</strong> and finishes at <strong>[% message.ends_at %]</strong> 
