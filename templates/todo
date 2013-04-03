@@ -53,18 +53,29 @@
 							[% comment.content %] 
 						</p>
 						[% IF comment.attachments.size %]
-						<hr />
-						[%  FOREACH attachment IN comment.attachments %]
-							[% IF (index(attachment.content_type, 'image') != -1) %]
-								<ac:image ac:thumbnail="true" ac:width="200">
-									<ri:attachment ri:filename="[% attachment.name %]" />
-								</ac:image>
-							[% ELSE %]
-								<ac:link>
-									<ri:attachment ri:filename="[% attachment.name %]" />
-								</ac:link>
+							<hr />
+							[%  FOREACH attachment IN comment.attachments %]
+								[% IF ( matches = attachment.content_type.match('^(image)')) %]
+									<ac:image ac:thumbnail="true" ac:width="200" ac:title="[% attachment.name %]">
+										<ri:attachment ri:filename="[% attachment.key %][% attachment.name %]" />
+									</ac:image>
+								[% END %]
 							[% END %]
-						[%  END %]
+							
+							[%  FOREACH attachment IN comment.attachments %]
+							<ul>
+								[% IF ( matches = attachment.content_type.match('^(?!image)')) %]
+									<li>
+										<ac:link>
+											<ri:attachment ri:filename="[% attachment.key %][% attachment.name %]" />
+											<ac:plain-text-link-body>
+    											<![CDATA[ [% attachment.name %] ]]>
+  											</ac:plain-text-link-body>
+										</ac:link>
+									</li>
+								[% END %]
+							</ul>
+							[% END %]
 						[% END %]
 						
 					</ac:rich-text-body>

@@ -183,12 +183,14 @@ sub handleAttachment {
 
 		$remoteAttachmentElement = SOAP::Data->name(
 			"remoteAttachmentDetails" => \SOAP::Data->value(
-				SOAP::Data->name( 'comment' => 'temp comment for attachment' )
+				SOAP::Data->name( 'comment' => '' )
 				  ->type('string'),
 				SOAP::Data->name(
 					'contentType' => $attachment->{content_type}
 				  )->type('string'),
-				SOAP::Data->name( 'fileName' => $attachment->{name} )
+				SOAP::Data->name( 'fileName' => $attachment->{key} . $attachment->{name} )
+				  ->type('string'),
+				  SOAP::Data->name( 'title' => $attachment->{name} )
 				  ->type('string'),
 			)
 		)->type('tns2:RemoteAttachment');
@@ -219,7 +221,7 @@ sub handleBaseCampTopics {
 		my $topicType   = $topic->{'topicable'}->{'type'};
 
 		my $ua = LWP::UserAgent->new;
-		$ua->timeout(10);
+		$ua->timeout(20);
 		$ua->env_proxy;
 
 		# let fetch all messages
